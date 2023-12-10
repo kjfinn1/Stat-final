@@ -1,0 +1,115 @@
+---
+title: "Statistical Learning Final Project"
+author: "**Kevin Finn**"
+format: html
+---
+
+```{r config, include=FALSE}
+# Set global configurations and settings here
+knitr::opts_chunk$set()                 # set global chunk options
+ggplot2::theme_set(ggplot2::theme_bw()) # set ggplot2 theme
+```
+
+
+# Required R packages and Directories
+
+```{r packages, message=FALSE, warning=FALSE}
+library(tidyverse) # functions for data manipulation
+library(Lahman)
+library(dplyr)
+```
+
+
+::: {.callout-note title="Solution"}
+```{r}
+HallOfFameTotal<-HallOfFame %>%
+  filter(votedBy=='BBWAA' & category=='Player' & yearID >= '1950')
+
+UniquePlayers <- unique(HallOfFameTotal$playerID)
+
+UniquePlayersDF <- data.frame("playerID" = UniquePlayers)
+
+HallOfFameYes <- HallOfFame %>%
+  filter(votedBy=='BBWAA' & category=='Player' & inducted =='Y' & yearID >= '1950')
+
+HallOfFameYes <- HallOfFameYes[, c("playerID", "inducted")]
+
+merged_players <- merge(UniquePlayersDF, HallOfFameYes, by = "playerID", all = TRUE)
+
+merged_players$inducted <- ifelse(is.na(merged_players$inducted), 'N', merged_players$inducted)
+
+merged_players$HOF <- ifelse(merged_players$inducted== "N",0,1)
+
+merged_players <- merged_players[, c("playerID", "HOF")]
+```
+:::
+
+
+::: {.callout-note title="Solution"}
+```{r}
+BattingSum <- Batting %>%
+  group_by(playerID) %>%
+  summarise(across(where(is.numeric),sum))
+BattingSum <- Batting %>%
+  group_by(playerID) %>%
+  summarise(across(where(is.numeric),sum))
+```
+
+
+```{r}
+TotalHitting <- left_join(merged_players, Batting, by = "playerID")
+TotalPitching <- left_join(merged_players, Pitching, by = "playerID")
+```
+:::
+
+::: {.callout-note title="Solution"}
+
+:::
+
+
+
+::: {.callout-note title="Solution"}
+```{r}
+data("Fielding")
+player_data <- subset(Fielding, playerID %in% merged_players$playerID)
+player_data <- player_data[, c("playerID", "POS")]
+
+```
+:::
+
+
+
+::: {.callout-note title="Solution"}
+
+:::
+
+
+
+::: {.callout-note title="Solution"}
+
+:::
+
+
+
+
+::: {.callout-note title="Solution"}
+```{r}
+
+```
+:::
+
+
+::: {.callout-note title="Solution"}
+
+:::
+
+
+
+
+::: {.callout-note title="Solution"}
+
+:::
+
+::: {.callout-note title="Solution"}
+
+:::
