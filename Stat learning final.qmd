@@ -19,6 +19,7 @@ library(Lahman)
 library(dplyr)
 ```
 
+
 ::: {.callout-note title="Solution"}
 ```{r}
 HallOfFameTotal<-HallOfFame %>%
@@ -49,16 +50,8 @@ player_data <- player_data[, c("playerID", "POS")]
 ```
 
 ```{r}
-most_common_position <- player_data %>%
-  group_by(playerID) %>%
-  summarize(MostCommonPosition = names(which.max(table(POS))))
-```
-
-```{r}
-merged_players <- left_join(merged_players, most_common_position, by = "playerID")
-
-merged_players <- merged_players %>% rename(POS = MostCommonPosition)
-
+merged_players <- left_join(player_data, merged_players, by = "playerID")
+#merged_players <- left_join(player_data, Pitching, by = "playerID")
 ```
 
 ```{r}
@@ -66,7 +59,10 @@ HOFP <- subset(merged_players, POS == "P")
 HOFH <- subset(merged_players, POS != "P")
 ```
 
-
+```{r}
+PitchingSum <- subset(PitchingSum, select = -c(yearID, stint, ERA, BAOpp))
+BattingSum <- subset(BattingSum, select = -c(yearID, stint))
+```
 
 ```{r}
 BattingSum <- Batting %>%
@@ -75,11 +71,6 @@ BattingSum <- Batting %>%
 PitchingSum <- Pitching %>%
   group_by(playerID) %>%
   summarise(across(where(is.numeric),sum))
-```
-
-```{r}
-PitchingSum <- subset(PitchingSum, select = -c(yearID, stint, BAOpp, ERA))
-BattingSum <- subset(BattingSum, select = -c(yearID, stint))
 ```
 :::
 
@@ -90,41 +81,25 @@ HOF_hit <- left_join(HOFH, BattingSum, by = "playerID")
 HOF_pitch <- left_join(HOFP, PitchingSum, by = "playerID")
 ```
 
+
+
 ```{r}
-HOF_hit$SF[is.na(HOF_hit$SF)] <- 0
-HOF_hit$HBP[is.na(HOF_hit$HBP)] <- 0
-HOF_hit$IBB[is.na(HOF_hit$IBB)] <- 0
+merged_players <- left_join(player_data, Batting, by = "playerID")
+merged_players <- left_join(player_data, Pitching, by = "playerID")
+```
 
-# Calculate Batting Average (BA)
-HOF_hit$BA <- HOF_hit$H / HOF_hit$AB
-
-# Calculate On-Base Percentage (OBP)
-HOF_hit$OBP <- (HOF_hit$H + HOF_hit$BB) / (HOF_hit$AB + HOF_hit$BB + HOF_hit$HBP + HOF_hit$SF)
-
-# Calculate Slugging Percentage (SLG)
-HOF_hit$SLG <- (HOF_hit$H + HOF_hit$X2B + 2 * HOF_hit$X3B + 3 * HOF_hit$HR) / HOF_hit$AB
-
-HOF_hit$OPS <- HOF_hit$OBP + HOF_hit$SLG
-
-# Print the updated dataframe
-print(HOF_hit)
-
-HOF_pitch$WHIP <- (HOF_pitch$H + HOF_pitch$BB + HOF_pitch$HBP)/(HOF_pitch$IPouts/3)
-
-HOF_pitch$ERA <- (HOF_pitch$ER/(HOF_pitch$IPouts/3))*9
-
-HOF_pitch
-
+```{r}
+TotalHitting <- left_join(merged_players, Batting, by = "playerID")
+TotalPitching <- left_join(merged_players, Pitching, by = "playerID")
 ```
 
 
 
 ```{r}
-HOF_pitch <- subset(HOF_pitch, select = -c(WP, HBP, SH,SF, GIDP, IBB, BK, GF, IPouts, BFP, R))
-HOF_hit <- subset(HOF_hit, select = -c(CS, IBB, HBP, SH, SF, GIDP))
-
-
+TotalHitting <- left_join(merged_players, Batting, by = "playerID")
+TotalPitching <- left_join(merged_players, Pitching, by = "playerID")
 ```
+:::
 
 ::: {.callout-note title="Solution"}
 
