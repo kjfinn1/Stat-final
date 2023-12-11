@@ -16,9 +16,10 @@ ggplot2::theme_set(ggplot2::theme_bw()) # set ggplot2 theme
 ```{r packages, message=FALSE, warning=FALSE}
 library(tidyverse) # functions for data manipulation
 library(Lahman)
+library(ggplot2)
+library(grf)
 library(dplyr)
 ```
-
 
 ::: {.callout-note title="Solution"}
 ```{r}
@@ -50,8 +51,16 @@ player_data <- player_data[, c("playerID", "POS")]
 ```
 
 ```{r}
-merged_players <- left_join(player_data, merged_players, by = "playerID")
-#merged_players <- left_join(player_data, Pitching, by = "playerID")
+most_common_position <- player_data %>%
+  group_by(playerID) %>%
+  summarize(MostCommonPosition = names(which.max(table(POS))))
+```
+
+```{r}
+merged_players <- left_join(merged_players, most_common_position, by = "playerID")
+
+merged_players <- merged_players %>% rename(POS = MostCommonPosition)
+
 ```
 
 ```{r}
@@ -59,10 +68,7 @@ HOFP <- subset(merged_players, POS == "P")
 HOFH <- subset(merged_players, POS != "P")
 ```
 
-```{r}
-PitchingSum <- subset(PitchingSum, select = -c(yearID, stint, ERA, BAOpp))
-BattingSum <- subset(BattingSum, select = -c(yearID, stint))
-```
+
 
 ```{r}
 BattingSum <- Batting %>%
@@ -71,6 +77,11 @@ BattingSum <- Batting %>%
 PitchingSum <- Pitching %>%
   group_by(playerID) %>%
   summarise(across(where(is.numeric),sum))
+```
+
+```{r}
+PitchingSum <- subset(PitchingSum, select = -c(yearID, stint, BAOpp, ERA))
+BattingSum <- subset(BattingSum, select = -c(yearID, stint))
 ```
 :::
 
@@ -81,69 +92,182 @@ HOF_hit <- left_join(HOFH, BattingSum, by = "playerID")
 HOF_pitch <- left_join(HOFP, PitchingSum, by = "playerID")
 ```
 
+```{r}
+HOF_hit$SF[is.na(HOF_hit$SF)] <- 0
+HOF_hit$HBP[is.na(HOF_hit$HBP)] <- 0
+HOF_hit$IBB[is.na(HOF_hit$IBB)] <- 0
+
+# Calculate Batting Average (BA)
+HOF_hit$BA <- HOF_hit$H / HOF_hit$AB
+
+# Calculate On-Base Percentage (OBP)
+HOF_hit$OBP <- (HOF_hit$H + HOF_hit$BB) / (HOF_hit$AB + HOF_hit$BB + HOF_hit$HBP + HOF_hit$SF)
+
+# Calculate Slugging Percentage (SLG)
+HOF_hit$SLG <- (HOF_hit$H + HOF_hit$X2B + 2 * HOF_hit$X3B + 3 * HOF_hit$HR) / HOF_hit$AB
+
+HOF_hit$OPS <- HOF_hit$OBP + HOF_hit$SLG
+
+HOF_pitch$WHIP <- (HOF_pitch$H + HOF_pitch$BB + HOF_pitch$HBP)/(HOF_pitch$IPouts/3)
+
+HOF_pitch$ERA <- (HOF_pitch$ER/(HOF_pitch$IPouts/3))*9
+
+```
+
 
 
 ```{r}
-merged_players <- left_join(player_data, Batting, by = "playerID")
-merged_players <- left_join(player_data, Pitching, by = "playerID")
+HOF_pitch <- subset(HOF_pitch, select = -c(WP, HBP, SH,SF, GIDP, IBB, BK, GF, IPouts, BFP, R))
+HOF_hit <- subset(HOF_hit, select = -c(CS, IBB, HBP, SH, SF, GIDP))
 ```
 
 ```{r}
-TotalHitting <- left_join(merged_players, Batting, by = "playerID")
-TotalPitching <- left_join(merged_players, Pitching, by = "playerID")
+columns_to_normalize <- c("H", "R", "X2B", "X3B", "HR", "RBI", "SB", "BB", "BA", "OBP", "SLG")
+subset_data <- HOF_hit[, columns_to_normalize]
+
+# Normalize variables to [0, 1] range
+normalize_0_to_1 <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+# Apply normalization function to each column
+normalized_data_hit <- as.data.frame(lapply(subset_data, normalize_0_to_1))
+
+HOF_hit <- cbind(HOF_hit$playerID, HOF_hit$HOF, HOF_hit$POS, HOF_hit$G, HOF_hit$AB, normalized_data_hit)
+
+new_column_names <- c("playerID", "HOF", "POS", "G", "AB", "H", "R", "X2B", "X3B", "HR", "RBI", "SB", "BB", "BA", "OBP", "SLG")
+colnames(HOF_hit) <- new_column_names
+
 ```
-
-
 
 ```{r}
-TotalHitting <- left_join(merged_players, Batting, by = "playerID")
-TotalPitching <- left_join(merged_players, Pitching, by = "playerID")
+HOF_pitch <- na.omit(HOF_pitch)
+columns_to_normalize <- c("W", "L", "G", "GS", "CG", "SHO", "SV", "ER", "HR", "BB", "SO", "WHIP", "ERA")
+subset_data <- HOF_pitch[, columns_to_normalize]
+
+# Normalize variables to [0, 1] range
+normalize_0_to_1 <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+# Apply normalization function to each column
+normalized_data_pitch <- as.data.frame(lapply(subset_data, normalize_0_to_1))
+
+HOF_pitch <- cbind(HOF_pitch$playerID, HOF_pitch$HOF, HOF_pitch$POS, normalized_data_pitch)
+
+new_column_names <- c("playerID", "HOF", "POS", "W", "L", "G", "GS", "CG", "SHO", "SV", "ER", "HR", "BB", "SO", "WHIP", "ERA")
+colnames(HOF_pitch) <- new_column_names
+
 ```
-:::
-
-::: {.callout-note title="Solution"}
-
-:::
-
-
-
-::: {.callout-note title="Solution"}
-
-:::
-
-
-
-::: {.callout-note title="Solution"}
-
-:::
-
-
-
-::: {.callout-note title="Solution"}
-
-:::
-
-
 
 
 ::: {.callout-note title="Solution"}
 ```{r}
-
+HittingData <- data.frame(
+  Statistic = c(),
+  Affected = c(),
+  NotAffected = c(),
+  PercentAffected = c(),
+  MeanEffect = c()
+)
 ```
-:::
+Runs
+```{r}
+split <- sample(c(FALSE, TRUE), nrow(HOF_hit), replace = TRUE)
+HOF_hit.train <- HOF_hit[split,]
+HOF_hit.hold <- HOF_hit[!split,]
 
 
-::: {.callout-note title="Solution"}
+# Isolate the "treatment" as a matrix
+treatRuns <- as.matrix(HOF_hit.train$R)
 
-:::
+# Isolate the outcome as a matrix
+HOFhitoutcome <- as.matrix(HOF_hit.train$HOF)
 
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+Xhit <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.train))
 
+# Estimate causal forest
+cfRuns <- causal_forest(Xhit,HOFhitoutcome,treatRuns, num.trees = 5000)
 
+# Get predicted causal effects for each observation
+effectsRuns <- predict(cfRuns)$predictions
 
-::: {.callout-note title="Solution"}
+# And use holdout X's for prediction
+X.holdRuns <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.hold <- predict(cfRuns, X.holdRuns)$predictions
 
-:::
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsRuns <- sqrt(predict(cfRuns, X.holdRuns, estimate.variance = TRUE)$variance.estimates)
+```
 
-::: {.callout-note title="Solution"}
+```{r}
+estimated_effectsRuns <- effectsRuns
 
-:::
+# Extract standard errors
+standard_errorsRuns <- SEsRuns
+
+# Calculate z-scores
+z_scoresRuns <- estimated_effectsRuns / standard_errorsRuns
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsRuns <- abs(z_scoresRuns) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind("R", sum(significant_effectsRuns), sum(!significant_effectsRuns), sum(significant_effectsRuns)/(sum(significant_effectsRuns)+sum(!significant_effectsRuns)), mean(effectsRuns))
+```
+Hits
+```{r}
+# Isolate the "treatment" as a matrix
+treatHits <- as.matrix(HOF_hit.train$H)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+Xhit <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfRuns <- causal_forest(Xhit,HOFhitoutcome,treatRuns, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsRuns <- predict(cfRuns)$predictions
+
+# And use holdout X's for prediction
+X.holdRuns <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.hold <- predict(cfRuns, X.holdRuns)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsRuns <- sqrt(predict(cfRuns, X.holdRuns, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsRuns <- effectsRuns
+
+# Extract standard errors
+standard_errorsRuns <- SEsRuns
+
+# Calculate z-scores
+z_scoresRuns <- estimated_effectsRuns / standard_errorsRuns
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsRuns <- abs(z_scoresRuns) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind("R", sum(significant_effectsRuns), sum(!significant_effectsRuns), sum(significant_effectsRuns)/(sum(significant_effectsRuns)+sum(!significant_effectsRuns)), mean(effectsRuns))
+```
