@@ -1,0 +1,349 @@
+---
+title: "Statistical Learning Final Project"
+author: "**Kevin Finn, Will Sivolella, Jack Gallagher**"
+format: html
+---
+
+```{r config, include=FALSE}
+# Set global configurations and settings here
+knitr::opts_chunk$set()                 # set global chunk options
+ggplot2::theme_set(ggplot2::theme_bw()) # set ggplot2 theme
+```
+
+
+# Causal Analysis
+
+Causal analysis within the realm of machine learning represents a dynamic and interdisciplinary pursuit, integrating advanced statistical methodologies, expert domain knowledge, and a nuanced understanding of causation. In this emerging field, there lies a distinct opportunity to elevate the efficacy of machine learning models, imbuing predictions with enhanced robustness and interpretability. This is particularly pertinent in intricate systems where the discernment of causal relationships is imperative for informed decision-making.
+
+## Causation vs. Correlation: A Fundamental Distinction
+
+At the heart of causal inference lies a pivotal distinction between causation and correlation. Causation denotes a direct and substantive link between a presumed cause and its ensuing effect. When a change in one variable consistently leads to a change in another, causation is inferred. However, the intricate nature of real-world data introduces the possibility of confounding factors, complicating the straightforward determination of causation.
+
+## Example: Ice Cream Sales and Unlikely Correlations
+
+Illustrating this point is the classic example examining the purported causal effect between ice cream sales and crime or drowning incidents. Superficially, a substantial correlation between these variables is apparent. Closer inspection reveals this association to be spurious.
+Behind the scenes, the connection emerges as a consequence of shared influences, primarily dictated by the weather. Ice cream sales surge during warmer months, aligning with increased outdoor activities, including swimming and beach attendance. Simultaneously, higher temperatures correlate with an uptick in drowning incidents and certain types of crime. This example underscores the importance of differentiating between correlation and causation, emphasizing that predictive measures alone do not provide a reliable gauge of causality.
+
+## Moving Beyond Correlations: The Essence of Causal Analysis
+
+The essence of causal analysis lies in transcending superficial observations of correlations and delving into the intricate web of underlying mechanisms propelling specific outcomes. By doing so, practitioners can unravel the complexities of cause-and-effect relationships, discerning the true drivers of phenomena.
+As machine learning models become increasingly sophisticated, incorporating causal analysis not only enhances the accuracy of predictions but also empowers decision-makers to comprehend and intervene effectively in complex systems. This strategic fusion of statistical acumen and domain expertise paves the way for a deeper understanding of causation within the evolving landscape of machine learning.
+
+# Casual Forest 
+
+The concept of Causal Forest is rooted in the framework of Random Forests, which comprises multiple independent decision trees operating at various levels. Each decision tree is trained on a specific predictor or subset of the data, and their predictions collectively contribute to creating a more robust predictive model.
+Distinguishing itself from the Random Forest approach, Causal Forest integrates concepts from causal inference. While Random Forest primarily focuses on minimizing prediction error, Causal Forest aims to optimize data splits by maximizing differences across each split based on the relationships between response and predictor variables. A key distinction lies in the handling of confounding variables, where the Causal Forest algorithm strives to balance covariates across data splits, ensuring fair comparisons in each decision tree to capture true causal relationships. The overarching objective of Causal Forests is to examine how the effects of predictors vary across a sample.
+
+## Casual Forest R package
+
+For the implementation of Causal Forest in R, the grf package proves instrumental, featuring the causal_forest function. This function facilitates the creation of our model, and the package offers additional tools for analyzing the causal effects of predictor variables and assessing the accuracy of our predictive model.
+
+## Specific Implementation: Causal Forest and MLB Hall of Fame Data
+
+For a specific implementation, the project will utilize the R package "Causal Forest" to delve into causal inference. The chosen dataset will be MLB Hall of Fame data, providing a rich context to explore and implement causal analysis techniques. This focused application aims to showcase the practical integration of advanced statistical methodologies in addressing real-world complexities and deriving meaningful insights.
+
+# Data Exploration and Data Cleaning
+
+```{r packages, message=FALSE, warning=FALSE}
+library(tidyverse) # functions for data manipulation
+library(Lahman)
+library(ggplot2)
+library(grf)
+library(dplyr)
+```
+
+Here we are merging a data set of all players who have ever received Hall of Fame votes with a data set containing seasonal statics of every player to have ever played in the MLB. We joined on the Player ID to only get player statistics from players who received Hall of Fame votes.
+
+::: {.callout-note title="Solution"}
+```{r}
+HallOfFameTotal<-HallOfFame %>%
+  filter(votedBy=='BBWAA' & category=='Player' & yearID >= '1950')
+
+UniquePlayers <- unique(HallOfFameTotal$playerID)
+
+UniquePlayersDF <- data.frame("playerID" = UniquePlayers)
+
+HallOfFameYes <- HallOfFame %>%
+  filter(votedBy=='BBWAA' & category=='Player' & inducted =='Y' & yearID >= '1950')
+
+HallOfFameYes <- HallOfFameYes[, c("playerID", "inducted")]
+
+merged_players <- merge(UniquePlayersDF, HallOfFameYes, by = "playerID", all = TRUE)
+
+merged_players$inducted <- ifelse(is.na(merged_players$inducted), 'N', merged_players$inducted)
+
+merged_players$HOF <- ifelse(merged_players$inducted== "N",0,1)
+
+merged_players <- merged_players[, c("playerID", "HOF")]
+```
+
+```{r}
+data("Fielding")
+player_data <- subset(Fielding, playerID %in% merged_players$playerID)
+player_data <- player_data[, c("playerID", "POS")]
+```
+
+```{r}
+most_common_position <- player_data %>%
+  group_by(playerID) %>%
+  summarize(MostCommonPosition = names(which.max(table(POS))))
+```
+
+```{r}
+merged_players <- left_join(merged_players, most_common_position, by = "playerID")
+
+merged_players <- merged_players %>% rename(POS = MostCommonPosition)
+
+```
+
+Here we split the players up by position players and pitchers because different statistics apply to these different positions. We will create different models for pitcher and position players.
+
+```{r}
+HOFP <- subset(merged_players, POS == "P")
+HOFH <- subset(merged_players, POS != "P")
+```
+
+Next, we summed all the rows (each row pertains to a single season) of player statistics that are counting variables to get career statistics for each player. We used these counting statistics to recalculate different averages.
+
+```{r}
+BattingSum <- Batting %>%
+  group_by(playerID) %>%
+  summarise(across(where(is.numeric),sum))
+PitchingSum <- Pitching %>%
+  group_by(playerID) %>%
+  summarise(across(where(is.numeric),sum))
+```
+
+```{r}
+PitchingSum <- subset(PitchingSum, select = -c(yearID, stint, BAOpp, ERA))
+BattingSum <- subset(BattingSum, select = -c(yearID, stint))
+```
+:::
+
+
+::: {.callout-note title="Solution"}
+```{r}
+HOF_hit <- left_join(HOFH, BattingSum, by = "playerID")
+HOF_pitch <- left_join(HOFP, PitchingSum, by = "playerID")
+```
+
+```{r}
+HOF_hit$SF[is.na(HOF_hit$SF)] <- 0
+HOF_hit$HBP[is.na(HOF_hit$HBP)] <- 0
+HOF_hit$IBB[is.na(HOF_hit$IBB)] <- 0
+
+# Calculate Batting Average (BA)
+HOF_hit$BA <- HOF_hit$H / HOF_hit$AB
+
+# Calculate On-Base Percentage (OBP)
+HOF_hit$OBP <- (HOF_hit$H + HOF_hit$BB) / (HOF_hit$AB + HOF_hit$BB + HOF_hit$HBP + HOF_hit$SF)
+
+# Calculate Slugging Percentage (SLG)
+HOF_hit$SLG <- (HOF_hit$H + HOF_hit$X2B + 2 * HOF_hit$X3B + 3 * HOF_hit$HR) / HOF_hit$AB
+
+HOF_hit$OPS <- HOF_hit$OBP + HOF_hit$SLG
+
+HOF_pitch$WHIP <- (HOF_pitch$H + HOF_pitch$BB + HOF_pitch$HBP)/(HOF_pitch$IPouts/3)
+
+HOF_pitch$ERA <- (HOF_pitch$ER/(HOF_pitch$IPouts/3))*9
+
+```
+
+
+
+```{r}
+HOF_pitch <- subset(HOF_pitch, select = -c(WP, HBP, SH,SF, GIDP, IBB, BK, GF, IPouts, BFP, R))
+HOF_hit <- subset(HOF_hit, select = -c(CS, IBB, HBP, SH, SF, GIDP))
+```
+
+After obtaining the data frames we want, we now need to scale the predictor data so that each value is from 0 to 1. This will help the model weight the predictors properly. 
+
+```{r}
+columns_to_normalize <- c("H", "R", "X2B", "X3B", "HR", "RBI", "SB", "BB", "BA", "OBP", "SLG")
+subset_data <- HOF_hit[, columns_to_normalize]
+
+# Normalize variables to [0, 1] range
+normalize_0_to_1 <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+# Apply normalization function to each column
+normalized_data_hit <- as.data.frame(lapply(subset_data, normalize_0_to_1))
+
+HOF_hit <- cbind(HOF_hit$playerID, HOF_hit$HOF, HOF_hit$POS, HOF_hit$G, HOF_hit$AB, normalized_data_hit)
+
+new_column_names <- c("playerID", "HOF", "POS", "G", "AB", "H", "R", "X2B", "X3B", "HR", "RBI", "SB", "BB", "BA", "OBP", "SLG")
+colnames(HOF_hit) <- new_column_names
+
+```
+
+
+
+```{r}
+HOF_pitch <- na.omit(HOF_pitch)
+columns_to_normalize <- c("W", "L", "G", "GS", "CG", "SHO", "SV", "ER", "HR", "BB", "SO", "WHIP", "ERA")
+subset_data <- HOF_pitch[, columns_to_normalize]
+
+# Normalize variables to [0, 1] range
+normalize_0_to_1 <- function(x) {
+  (x - min(x)) / (max(x) - min(x))
+}
+
+# Apply normalization function to each column
+normalized_data_pitch <- as.data.frame(lapply(subset_data, normalize_0_to_1))
+
+HOF_pitch <- cbind(HOF_pitch$playerID, HOF_pitch$HOF, HOF_pitch$POS, normalized_data_pitch)
+
+new_column_names <- c("playerID", "HOF", "POS", "W", "L", "G", "GS", "CG", "SHO", "SV", "ER", "HR", "BB", "SO", "WHIP", "ERA")
+colnames(HOF_pitch) <- new_column_names
+
+```
+
+# Model Building
+
+::: {.callout-note title="Solution"}
+```{r}
+HittingData <- data.frame(
+  Statistic = c(),
+  Affected = c(),
+  NotAffected = c(),
+  PercentAffected = c(),
+  MeanEffect = c()
+)
+```
+
+For our models we are creating numerous Causal Forests, where each predictor variables is set as the treatment while controlling for the other predictors. The purpose of doing this is to see the effects of each predictor while holding the other predictors constant. Therefore, we can determine the most influential player statistics that determine whether or not a player will be voted into the Hall of Fame.
+
+```{r}
+split <- sample(c(FALSE, TRUE), nrow(HOF_hit), replace = TRUE)
+HOF_hit.train <- HOF_hit[split,]
+HOF_hit.hold <- HOF_hit[!split,]
+
+
+# Isolate the "treatment" as a matrix
+treatRuns <- as.matrix(HOF_hit.train$R)
+
+# Isolate the outcome as a matrix
+HOFhitoutcome <- as.matrix(HOF_hit.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+Xruns <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfRuns <- causal_forest(Xruns,HOFhitoutcome,treatRuns, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsRuns <- predict(cfRuns)$predictions
+
+# And use holdout X's for prediction
+X.holdRuns <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.hold <- predict(cfRuns, X.holdRuns)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsRuns <- sqrt(predict(cfRuns, X.holdRuns, estimate.variance = TRUE)$variance.estimates)
+```
+
+
+
+```{r}
+estimated_effectsRuns <- effectsRuns
+
+# Extract standard errors
+standard_errorsRuns <- SEsRuns
+
+# Calculate z-scores
+z_scoresRuns <- estimated_effectsRuns / standard_errorsRuns
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsRuns <- abs(z_scoresRuns) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("R", sum(significant_effectsRuns), sum(!significant_effectsRuns), sum(significant_effectsRuns)/(sum(significant_effectsRuns)+sum(!significant_effectsRuns)), mean(effectsRuns)))
+```
+Hits
+```{r}
+# Isolate the "treatment" as a matrix
+treatHits <- as.matrix(HOF_hit.train$H)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+Xhit <- model.matrix(lm(HOF ~ -1 + R + X2B + X3B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfHits <- causal_forest(Xhit,HOFhitoutcome,treatHits, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsHits <- predict(cfHits)$predictions
+
+# And use holdout X's for prediction
+X.holdHits <- model.matrix(lm(HOF ~ -1 + R + X2B + X3B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.holdHits <- predict(cfHits, X.holdHits)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsHits <- sqrt(predict(cfHits, X.holdHits, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsHits <- effectsHits
+
+# Extract standard errors
+standard_errorsHits <- SEsHits
+
+# Calculate z-scores
+z_scoresHits <- estimated_effectsHits / standard_errorsHits
+
+significant_effectsHits <- abs(z_scoresHits) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("H", sum(significant_effectsHits), sum(!significant_effectsHits), sum(significant_effectsHits)/(sum(significant_effectsHits)+sum(!significant_effectsHits)), mean(effectsHits)))
+```
+
+# Model Results
+
+To analyze the results of the models, we have a data frame below of each statistic when they are set as the treatment variables. The data frame shows results including the number of players affected, players not affected, percentage of players affected and mean effect when the corresponding predictor is set as the treatment variable. Mean effect measures the percentage of players affected given unconfoundedness. 
+
+```{r}
+new_names <- c("Predictor", "Players_Affected", "Players_Not_Affected", "Percent_Affected", "Mean_Effect")
+names(HittingData) <- new_names
+
+HittingData
+```
+
+```{r}
+HittingData$Players_Affected <- as.integer(HittingData$Players_Affected)
+HittingData$Players_Not_Affected <- as.integer(HittingData$Players_Not_Affected)
+HittingData$Percent_Affected <- as.numeric(HittingData$Percent_Affected)
+HittingData$Mean_Effect <- as.numeric(HittingData$Mean_Effect)
+
+ggplot(HittingData, aes(x = Predictor, y = Players_Affected)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Hall of Fame Voting Affected by Specific Player Statistics", x = "Statistic", y = "Number of Players Affected") 
+```
+
+```{r}
+ggplot(HittingData, aes(x = Predictor, y = Mean_Effect)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Hall of Fame Voting Affected by Specific Player Statistics", x = "Statistic", y = "Mean Affect") 
+```
+
+```{r}
+
+
+
+```
+
+
