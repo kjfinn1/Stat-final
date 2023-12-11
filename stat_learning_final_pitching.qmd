@@ -1,0 +1,926 @@
+---
+title: "Statistical Learning Final Project"
+author: "**Kevin Finn**"
+format: html
+---
+
+```{r config, include=FALSE}
+# Set global configurations and settings here
+knitr::opts_chunk$set()                 # set global chunk options
+ggplot2::theme_set(ggplot2::theme_bw()) # set ggplot2 theme
+```
+
+
+# Required R packages and Directories
+
+```{r packages, message=FALSE, warning=FALSE}
+library(tidyverse) # functions for data manipulation
+library(Lahman)
+library(ggplot2)
+library(grf)
+library(dplyr)
+```
+# Pitching 
+
+
+```{r}
+PitchingData <- data.frame(
+  Statistic = c(),
+  Affected = c(),
+  NotAffected = c(),
+  PercentAffected = c(),
+  MeanEffect = c()
+)
+```
+Wins
+```{r}
+colnames(HOF_pitch)
+```
+```{r}
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+
+# Isolate the "treatment" as a matrix
+treatW <- as.matrix(HOF_pitch.train$W)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XW <- model.matrix(lm(HOF ~ -1 + L + G + GS + CG + 
+                       SHO + SV + ER + HR + BB + SO +
+                         WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfW <- causal_forest(XW,HOFpitchoutcome,treatW, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsW <- predict(cfW)$predictions
+
+
+X.hold.W <- model.matrix(lm(HOF ~ -1 + L + G + GS + CG + 
+                       SHO + SV + ER + HR + BB + SO +
+                         WHIP + ERA, data = HOF_pitch.hold))
+                   
+# And get effects
+effects.hold <- predict(cfW, X.hold.W)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEW <- sqrt(predict(cfW, X.hold.W, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsW <- effectsW
+
+# Extract standard errors
+standard_errorsW <- SEW
+
+# Calculate z-scores
+z_scoresW <- estimated_effectsW/ standard_errorsW
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsW <- abs(z_scoresW) > qnorm(1 - significance_level / 2)
+
+PitchingData<-rbind(PitchingData, c("W", sum(significant_effectsW), sum(!significant_effectsW), sum(significant_effectsW)/(sum(significant_effectsW)+sum(!significant_effectsW)), mean(effectsW)))
+```
+# L
+
+```{r}
+# Replace 'W' with 'L'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatL <- as.matrix(HOF_pitch.train$L)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XL <- model.matrix(lm(HOF ~ -1 + W + G + GS + CG + 
+                       SHO + SV + ER + HR + BB + SO +
+                       WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfL <- causal_forest(XL, HOFpitchoutcome, treatL, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsL <- predict(cfL)$predictions
+
+X.hold.L <- model.matrix(lm(HOF ~ -1 + W + G + GS + CG + 
+                              SHO + SV + ER + HR + BB + SO +
+                              WHIP + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfL, X.hold.L)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEL <- sqrt(predict(cfL, X.hold.L, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+
+# Replace 'W' with 'L'
+estimated_effectsL <- effectsL
+
+# Extract standard errors
+standard_errorsL <- SEL
+
+# Calculate z-scores
+z_scoresL <- estimated_effectsL / standard_errorsL
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsL <- abs(z_scoresL) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'L'
+PitchingData <- rbind(
+  PitchingData,
+  c("L", 
+    sum(significant_effectsL), 
+    sum(!significant_effectsL), 
+    sum(significant_effectsL) / (sum(significant_effectsL) + sum(!significant_effectsL)), 
+    mean(effectsL))
+)
+
+
+```
+# G
+
+```{r}
+# Replace 'L' with 'G'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatG <- as.matrix(HOF_pitch.train$G)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XG <- model.matrix(lm(HOF ~ -1 + W + L + GS + CG + 
+                       SHO + SV + ER + HR + BB + SO +
+                       WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfG <- causal_forest(XG, HOFpitchoutcome, treatG, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsG <- predict(cfG)$predictions
+
+X.hold.G <- model.matrix(lm(HOF ~ -1 + W + L + GS + CG + 
+                              SHO + SV + ER + HR + BB + SO +
+                              WHIP + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfG, X.hold.G)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEG <- sqrt(predict(cfG, X.hold.G, estimate.variance = TRUE)$variance.estimates)
+
+
+```
+
+```{r}
+
+# Replace 'L' with 'G'
+estimated_effectsG <- effectsG
+
+# Extract standard errors
+standard_errorsG <- SEG
+
+# Calculate z-scores
+z_scoresG <- estimated_effectsG / standard_errorsG
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsG <- abs(z_scoresG) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'G'
+PitchingData <- rbind(
+  PitchingData,
+  c("G", 
+    sum(significant_effectsG), 
+    sum(!significant_effectsG), 
+    sum(significant_effectsG) / (sum(significant_effectsG) + sum(!significant_effectsG)), 
+    mean(effectsG))
+)
+
+
+
+```
+
+# GS
+```{r}
+# Replace 'G' with 'GS'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatGS <- as.matrix(HOF_pitch.train$GS)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XGS <- model.matrix(lm(HOF ~ -1 + W + L + G + CG + 
+                       SHO + SV + ER + HR + BB + SO +
+                       WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfGS <- causal_forest(XGS, HOFpitchoutcome, treatGS, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsGS <- predict(cfGS)$predictions
+
+X.hold.GS <- model.matrix(lm(HOF ~ -1 + W + L + G + CG + 
+                              SHO + SV + ER + HR + BB + SO +
+                              WHIP + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfGS, X.hold.GS)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEGS <- sqrt(predict(cfGS, X.hold.GS, estimate.variance = TRUE)$variance.estimates)
+```
+
+
+```{r}
+
+# Replace 'G' with 'GS'
+estimated_effectsGS <- effectsGS
+
+# Extract standard errors
+standard_errorsGS <- SEGS
+
+# Calculate z-scores
+z_scoresGS <- estimated_effectsGS / standard_errorsGS
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsGS <- abs(z_scoresGS) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'GS'
+PitchingData <- rbind(
+  PitchingData,
+  c("GS", 
+    sum(significant_effectsGS), 
+    sum(!significant_effectsGS), 
+    sum(significant_effectsGS) / (sum(significant_effectsGS) + sum(!significant_effectsGS)), 
+    mean(effectsGS))
+)
+
+```
+
+#CG
+
+```{r}
+
+# Replace 'G' with 'CG'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatCG <- as.matrix(HOF_pitch.train$CG)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XCG <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                       SHO + SV + ER + HR + BB + SO +
+                       WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfCG <- causal_forest(XCG, HOFpitchoutcome, treatCG, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsCG <- predict(cfCG)$predictions
+
+X.hold.CG <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                              SHO + SV + ER + HR + BB + SO +
+                              WHIP + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfCG, X.hold.CG)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SECG <- sqrt(predict(cfCG, X.hold.CG, estimate.variance = TRUE)$variance.estimates)
+
+
+```
+
+```{r}
+estimated_effectsCG <- effectsCG
+
+# Extract standard errors
+standard_errorsCG <- SECG
+
+# Calculate z-scores
+z_scoresCG <- estimated_effectsCG / standard_errorsCG
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsCG <- abs(z_scoresCG) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'CG'
+PitchingData <- rbind(
+  PitchingData,
+  c("CG", 
+    sum(significant_effectsCG), 
+    sum(!significant_effectsCG), 
+    sum(significant_effectsCG) / (sum(significant_effectsCG) + sum(!significant_effectsCG)), 
+    mean(effectsCG))
+)
+
+```
+
+
+# SHO
+
+```{r}
+# Replace 'CG' with 'SHO'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatSHO <- as.matrix(HOF_pitch.train$SHO)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XSHO <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                       CG+ SV + ER + HR + BB + SO +
+                       WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfSHO <- causal_forest(XSHO, HOFpitchoutcome, treatSHO, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsSHO <- predict(cfSHO)$predictions
+
+X.hold.SHO <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                              CG + SV + ER + HR + BB + SO +
+                              WHIP + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfSHO, X.hold.SHO)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SESHO <- sqrt(predict(cfSHO, X.hold.SHO, estimate.variance = TRUE)$variance.estimates)
+
+```
+
+```{r}
+# Replace 'CG' with 'SHO'
+estimated_effectsSHO <- effectsSHO
+
+# Extract standard errors
+standard_errorsSHO <- SESHO
+
+# Calculate z-scores
+z_scoresSHO <- estimated_effectsSHO / standard_errorsSHO
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsSHO <- abs(z_scoresSHO) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'SHO'
+PitchingData <- rbind(
+  PitchingData,
+  c("SHO", 
+    sum(significant_effectsSHO), 
+    sum(!significant_effectsSHO), 
+    sum(significant_effectsSHO) / (sum(significant_effectsSHO) + sum(!significant_effectsSHO)), 
+    mean(effectsSHO))
+)
+
+
+```
+
+# SV
+```{r}
+
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatSV <- as.matrix(HOF_pitch.train$SV)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XSV <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                       CG + SHO + ER + HR + BB + SO +
+                       WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfSV <- causal_forest(XSV, HOFpitchoutcome, treatSV, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsSV <- predict(cfSV)$predictions
+
+X.hold.SV <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                              CG + SHO + ER + HR + BB + SO +
+                              WHIP + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfSV, X.hold.SV)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SESV <- sqrt(predict(cfSV, X.hold.SV, estimate.variance = TRUE)$variance.estimates)
+
+```
+
+
+```{r}
+
+# Replace 'SHO' with 'SV'
+estimated_effectsSV <- effectsSV
+
+# Extract standard errors
+standard_errorsSV <- SESV
+
+# Calculate z-scores
+z_scoresSV <- estimated_effectsSV / standard_errorsSV
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsSV <- abs(z_scoresSV) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'SV'
+PitchingData <- rbind(
+  PitchingData,
+  c("SV", 
+    sum(significant_effectsSV), 
+    sum(!significant_effectsSV), 
+    sum(significant_effectsSV) / (sum(significant_effectsSV) + sum(!significant_effectsSV)), 
+    mean(effectsSV))
+)
+
+
+
+```
+
+# ER
+
+```{r}
+
+# Replace 'SV' with 'ER'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatER <- as.matrix(HOF_pitch.train$ER)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XER <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                       CG + SHO + SV + HR + BB + SO +
+                       WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfER <- causal_forest(XER, HOFpitchoutcome, treatER, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsER <- predict(cfER)$predictions
+
+X.hold.ER <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                              CG + SHO + SV + HR + BB + SO +
+                              WHIP + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfER, X.hold.ER)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEER <- sqrt(predict(cfER, X.hold.ER, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+
+
+# Replace 'SV' with 'ER'
+estimated_effectsER <- effectsER
+
+# Extract standard errors
+standard_errorsER <- SEER
+
+# Calculate z-scores
+z_scoresER <- estimated_effectsER / standard_errorsER
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsER <- abs(z_scoresER) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'ER'
+PitchingData <- rbind(
+  PitchingData,
+  c("ER", 
+    sum(significant_effectsER), 
+    sum(!significant_effectsER), 
+    sum(significant_effectsER) / (sum(significant_effectsER) + sum(!significant_effectsER)), 
+    mean(effectsER))
+)
+
+
+```
+
+
+#HR 
+
+```{r}
+
+# Replace 'SV' with 'HR'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatHR <- as.matrix(HOF_pitch.train$HR)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XHR <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                       CG + SHO + ER + SV + BB + SO +
+                       WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfHR <- causal_forest(XHR, HOFpitchoutcome, treatHR, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsHR <- predict(cfHR)$predictions
+
+X.hold.HR <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                              CG + SHO + ER + SV + BB + SO +
+                              WHIP + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfHR, X.hold.HR)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEHR <- sqrt(predict(cfHR, X.hold.HR, estimate.variance = TRUE)$variance.estimates)
+
+
+
+```
+
+
+```{r}
+
+
+# Replace 'ER' with 'HR'
+estimated_effectsHR <- effectsHR
+
+# Extract standard errors
+standard_errorsHR <- SEHR
+
+# Calculate z-scores
+z_scoresHR <- estimated_effectsHR / standard_errorsHR
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsHR <- abs(z_scoresHR) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'HR'
+PitchingData <- rbind(
+  PitchingData,
+  c("HR", 
+    sum(significant_effectsHR), 
+    sum(!significant_effectsHR), 
+    sum(significant_effectsHR) / (sum(significant_effectsHR) + sum(!significant_effectsHR)), 
+    mean(effectsHR))
+)
+
+
+```
+
+# BB
+```{r}
+
+# Replace 'HR' with 'BB'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatBB <- as.matrix(HOF_pitch.train$BB)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XBB <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                       CG + SHO + ER + SV + HR + SO +
+                       WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfBB <- causal_forest(XBB, HOFpitchoutcome, treatBB, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsBB <- predict(cfBB)$predictions
+
+X.hold.BB <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                              CG + SHO + ER + SV + HR + SO +
+                              WHIP + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfBB, X.hold.BB)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEBB <- sqrt(predict(cfBB, X.hold.BB, estimate.variance = TRUE)$variance.estimates)
+
+```
+
+```{r}
+
+# Replace 'HR' with 'BB'
+estimated_effectsBB <- effectsBB
+
+# Extract standard errors
+standard_errorsBB <- SEBB
+
+# Calculate z-scores
+z_scoresBB <- estimated_effectsBB / standard_errorsBB
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsBB <- abs(z_scoresBB) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'BB'
+PitchingData <- rbind(
+  PitchingData,
+  c("BB", 
+    sum(significant_effectsBB), 
+    sum(!significant_effectsBB), 
+    sum(significant_effectsBB) / (sum(significant_effectsBB) + sum(!significant_effectsBB)), 
+    mean(effectsBB))
+)
+
+
+```
+
+
+## SO
+
+```{r}
+# Replace 'BB' with 'SO'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatSO <- as.matrix(HOF_pitch.train$SO)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XSO <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                       CG + SHO + ER + SV + HR + BB +
+                       WHIP + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfSO <- causal_forest(XSO, HOFpitchoutcome, treatSO, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsSO <- predict(cfSO)$predictions
+
+X.hold.SO <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                              CG + SHO + ER + SV + HR + BB +
+                              WHIP + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfSO, X.hold.SO)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SESO <- sqrt(predict(cfSO, X.hold.SO, estimate.variance = TRUE)$variance.estimates)
+
+
+```
+
+
+```{r}
+
+# Replace 'BB' with 'SO'
+estimated_effectsSO <- effectsSO
+
+# Extract standard errors
+standard_errorsSO <- SESO
+
+# Calculate z-scores
+z_scoresSO <- estimated_effectsSO / standard_errorsSO
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsSO <- abs(z_scoresSO) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'SO'
+PitchingData <- rbind(
+  PitchingData,
+  c("SO", 
+    sum(significant_effectsSO), 
+    sum(!significant_effectsSO), 
+    sum(significant_effectsSO) / (sum(significant_effectsSO) + sum(!significant_effectsSO)), 
+    mean(effectsSO))
+)
+```
+
+# WHIP
+
+```{r}
+
+# Replace 'SO' with 'WHIP'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatWHIP <- as.matrix(HOF_pitch.train$WHIP)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XWHIP <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                         CG + SHO + ER + SV + HR + BB +
+                         SO + ERA, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfWHIP <- causal_forest(XWHIP, HOFpitchoutcome, treatWHIP, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsWHIP <- predict(cfWHIP)$predictions
+
+X.hold.WHIP <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                                CG + SHO + ER + SV + HR + BB +
+                                SO + ERA, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfWHIP, X.hold.WHIP)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEWHIP <- sqrt(predict(cfWHIP, X.hold.WHIP, estimate.variance = TRUE)$variance.estimates)
+
+```
+
+```{r}
+# Replace 'SO' with 'WHIP'
+estimated_effectsWHIP <- effectsWHIP
+
+# Extract standard errors
+standard_errorsWHIP <- SEWHIP
+
+# Calculate z-scores
+z_scoresWHIP <- estimated_effectsWHIP / standard_errorsWHIP
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsWHIP <- abs(z_scoresWHIP) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'WHIP'
+PitchingData <- rbind(
+  PitchingData,
+  c("WHIP", 
+    sum(significant_effectsWHIPR), 
+    sum(!significant_effectsWHIP), 
+    sum(significant_effectsWHIP) / (sum(significant_effectsWHIP) + sum(!significant_effectsWHIP)), 
+    mean(effectsWHIP))
+)
+
+```
+
+# ERA
+
+```{r}
+
+# Replace 'WHIP' with 'ERA'
+split <- sample(c(FALSE, TRUE), nrow(HOF_pitch), replace = TRUE)
+HOF_pitch.train <- HOF_pitch[split,]
+HOF_pitch.hold <- HOF_pitch[!split,]
+
+# Isolate the "treatment" as a matrix
+treatERA <- as.matrix(HOF_pitch.train$ERA)
+
+# Isolate the outcome as a matrix
+HOFpitchoutcome <- as.matrix(HOF_pitch.train$HOF)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XERA <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                        CG + SHO + ER + SV + HR + BB +
+                        SO + WHIP, data = HOF_pitch.train))
+
+# Estimate causal forest
+cfERA <- causal_forest(XERA, HOFpitchoutcome, treatERA, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsERA <- predict(cfERA)$predictions
+
+X.hold.ERA <- model.matrix(lm(HOF ~ -1 + W + L + GS + G + 
+                               CG + SHO + ER + SV + HR + BB +
+                               SO + WHIP, data = HOF_pitch.hold))
+
+# And get effects
+effects.hold <- predict(cfERA, X.hold.ERA)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEERA <- sqrt(predict(cfERA, X.hold.ERA, estimate.variance = TRUE)$variance.estimates)
+
+```
+
+
+```{r}
+
+# Replace 'WHIP' with 'ERA'
+estimated_effectsERA <- effectsERA
+
+# Extract standard errors
+standard_errorsERA <- SEERA
+
+# Calculate z-scores
+z_scoresERA <- estimated_effectsERA / standard_errorsERA
+
+# Set a significance level (e.g., 0.05)
+significance_level <- 0.05
+
+# Check significance
+significant_effectsERA <- abs(z_scoresERA) > qnorm(1 - significance_level / 2)
+
+# Update PitchingData with information about 'ERA'
+PitchingData <- rbind(
+  PitchingData,
+  c("ERA", 
+    sum(significant_effectsERA), 
+    sum(!significant_effectsERA), 
+    sum(significant_effectsERA) / (sum(significant_effectsERA) + sum(!significant_effectsERA)), 
+    mean(effectsERA))
+)
+
+
+```
