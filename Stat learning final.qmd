@@ -201,7 +201,7 @@ X.holdRuns <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR +
                        RBI + SB + BB + BA + OBP + 
                        SLG, data = HOF_hit.hold))
 # And get effects
-effects.hold <- predict(cfRuns, X.holdRuns)$predictions
+effects.holdRuns <- predict(cfRuns, X.holdRuns)$predictions
 
 # Get standard errors for the holding data predictions - we probably should have set the num.trees
 # option in causal_forest higher before doing this, perhaps to 5000.
@@ -266,4 +266,422 @@ z_scoresHits <- estimated_effectsHits / standard_errorsHits
 significant_effectsHits <- abs(z_scoresHits) > qnorm(1 - significance_level / 2)
 
 HittingData<-rbind(HittingData, c("H", sum(significant_effectsHits), sum(!significant_effectsHits), sum(significant_effectsHits)/(sum(significant_effectsHits)+sum(!significant_effectsHits)), mean(effectsHits)))
+```
+X2B
+```{r}
+# Isolate the "treatment" as a matrix
+treatX2B <- as.matrix(HOF_hit.train$X2B)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XX2B <- model.matrix(lm(HOF ~ -1 + R + H + X3B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfX2B <- causal_forest(XX2B,HOFhitoutcome,treatX2B, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsX2B <- predict(cfX2B)$predictions
+
+# And use holdout X's for prediction
+X.holdX2B <- model.matrix(lm(HOF ~ -1 + R + H + X3B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.holdX2B <- predict(cfX2B, X.holdX2B)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsX2B <- sqrt(predict(cfX2B, X.holdX2B, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsX2B <- effectsX2B
+
+# Extract standard errors
+standard_errorsX2B <- SEsX2B
+
+# Calculate z-scores
+z_scoresX2B <- estimated_effectsX2B / standard_errorsX2B
+
+significant_effectsX2B <- abs(z_scoresX2B) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("X2B", sum(significant_effectsX2B), sum(!significant_effectsX2B), sum(significant_effectsX2B)/(sum(significant_effectsX2B)+sum(!significant_effectsX2B)), mean(effectsX2B)))
+```
+X3B
+```{r}
+# Isolate the "treatment" as a matrix
+treatX3B <- as.matrix(HOF_hit.train$X3B)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XX3B <- model.matrix(lm(HOF ~ -1 + R + H + X2B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfX3B <- causal_forest(XX3B,HOFhitoutcome,treatX3B, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsX3B <- predict(cfX3B)$predictions
+
+# And use holdout X's for prediction
+X.holdX3B <- model.matrix(lm(HOF ~ -1 + R + H + X2B + HR + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.holdX3B <- predict(cfX3B, X.holdX3B)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsX3B <- sqrt(predict(cfX3B, X.holdX3B, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsX3B <- effectsX3B
+
+# Extract standard errors
+standard_errorsX3B <- SEsX3B
+
+# Calculate z-scores
+z_scoresX3B <- estimated_effectsX3B / standard_errorsX3B
+
+significant_effectsX3B <- abs(z_scoresX3B) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("X3B", sum(significant_effectsX3B), sum(!significant_effectsX3B), sum(significant_effectsX3B)/(sum(significant_effectsX3B)+sum(!significant_effectsX3B)), mean(effectsX3B)))
+```
+Home Runs
+```{r}
+# Isolate the "treatment" as a matrix
+treatHR <- as.matrix(HOF_hit.train$HR)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XHR <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfHR <- causal_forest(XHR,HOFhitoutcome,treatHR, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsHR <- predict(cfHR)$predictions
+
+# And use holdout X's for prediction
+X.holdHR <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       RBI + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.holdHR <- predict(cfHR, X.holdHR)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsHR <- sqrt(predict(cfHR, X.holdHR, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsHR <- effectsHR
+
+# Extract standard errors
+standard_errorsHR <- SEsHR
+
+# Calculate z-scores
+z_scoresHR <- estimated_effectsHR / standard_errorsHR
+
+significant_effectsHR <- abs(z_scoresHR) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("HR", sum(significant_effectsHR), sum(!significant_effectsHR), sum(significant_effectsHR)/(sum(significant_effectsHR)+sum(!significant_effectsHR)), mean(effectsHR)))
+```
+
+RBI
+
+```{r}
+# Isolate the "treatment" as a matrix
+treatRBI <- as.matrix(HOF_hit.train$RBI)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XRBI <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfRBI <- causal_forest(XRBI,HOFhitoutcome,treatRBI, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsRBI <- predict(cfRBI)$predictions
+
+# And use holdout X's for prediction
+X.holdRBI <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + SB + BB + BA + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.holdRBI <- predict(cfRBI, X.holdRBI)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsRBI <- sqrt(predict(cfRBI, X.holdRBI, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsRBI <- effectsRBI
+
+# Extract standard errors
+standard_errorsRBI <- SEsRBI
+
+# Calculate z-scores
+z_scoresRBI <- estimated_effectsRBI / standard_errorsRBI
+
+significant_effectsRBI <- abs(z_scoresRBI) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("RBI", sum(significant_effectsRBI), sum(!significant_effectsRBI), sum(significant_effectsRBI)/(sum(significant_effectsRBI)+sum(!significant_effectsRBI)), mean(effectsRBI)))
+```
+
+Stolen Bases
+
+```{r}
+# Isolate the "treatment" as a matrix
+treatSB <- as.matrix(HOF_hit.train$SB)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XSB <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + RBI + BB + BA + OBP + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfSB <- causal_forest(XSB,HOFhitoutcome,treatSB, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsSB <- predict(cfSB)$predictions
+
+# And use holdout X's for prediction
+X.holdSB <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + RBI + BB + BA + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.holdSB <- predict(cfSB, X.holdSB)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsSB <- sqrt(predict(cfSB, X.holdSB, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsSB <- effectsSB
+
+# Extract standard errors
+standard_errorsSB <- SEsSB
+
+# Calculate z-scores
+z_scoresSB <- estimated_effectsSB / standard_errorsSB
+
+significant_effectsSB <- abs(z_scoresSB) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("SB", sum(significant_effectsSB), sum(!significant_effectsSB), sum(significant_effectsSB)/(sum(significant_effectsSB)+sum(!significant_effectsSB)), mean(effectsSB)))
+```
+
+Base on Balls
+
+```{r}
+# Isolate the "treatment" as a matrix
+treatBB <- as.matrix(HOF_hit.train$BB)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XBB <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + RBI + SB + BA + OBP + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfBB <- causal_forest(XBB,HOFhitoutcome,treatBB, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsBB <- predict(cfBB)$predictions
+
+# And use holdout X's for prediction
+X.holdBB <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + RBI + SB + BA + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.holdBB <- predict(cfBB, X.holdBB)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsBB <- sqrt(predict(cfBB, X.holdBB, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsBB <- effectsBB
+
+# Extract standard errors
+standard_errorsBB <- SEsBB
+
+# Calculate z-scores
+z_scoresBB <- estimated_effectsBB / standard_errorsBB
+
+significant_effectsBB <- abs(z_scoresBB) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("BB", sum(significant_effectsBB), sum(!significant_effectsBB), sum(significant_effectsBB)/(sum(significant_effectsBB)+sum(!significant_effectsBB)), mean(effectsBB)))
+```
+
+Batting Average
+
+```{r}
+# Isolate the "treatment" as a matrix
+treatBA <- as.matrix(HOF_hit.train$BA)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XBA <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + RBI + SB + BB + OBP + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfBA <- causal_forest(XBA,HOFhitoutcome,treatBA, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsBA <- predict(cfBA)$predictions
+
+# And use holdout X's for prediction
+X.holdBA <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + RBI + SB + BB + OBP + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.holdBA <- predict(cfBA, X.holdBA)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsBA <- sqrt(predict(cfBA, X.holdBA, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsBA <- effectsBA
+
+# Extract standard errors
+standard_errorsBA <- SEsBA
+
+# Calculate z-scores
+z_scoresBA <- estimated_effectsBA / standard_errorsBA
+
+significant_effectsBA <- abs(z_scoresBA) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("BA", sum(significant_effectsBA), sum(!significant_effectsBA), sum(significant_effectsBA)/(sum(significant_effectsBA)+sum(!significant_effectsBA)), mean(effectsBA)))
+```
+
+On Base
+```{r}
+# Isolate the "treatment" as a matrix
+treatOBP <- as.matrix(HOF_hit.train$OBP)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XOBP <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + RBI + SB + BB + BA + 
+                       SLG, data = HOF_hit.train))
+
+# Estimate causal forest
+cfOBP <- causal_forest(XOBP,HOFhitoutcome,treatOBP, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsOBP <- predict(cfOBP)$predictions
+
+# And use holdout X's for prediction
+X.holdOBP <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + RBI + SB + BB + BA + 
+                       SLG, data = HOF_hit.hold))
+# And get effects
+effects.holdOBP <- predict(cfOBP, X.holdOBP)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsOBP <- sqrt(predict(cfOBP, X.holdOBP, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsOBP <- effectsOBP
+
+# Extract standard errors
+standard_errorsOBP <- SEsOBP
+
+# Calculate z-scores
+z_scoresOBP <- estimated_effectsOBP / standard_errorsOBP
+
+significant_effectsOBP <- abs(z_scoresOBP) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("OBP", sum(significant_effectsOBP), sum(!significant_effectsOBP), sum(significant_effectsOBP)/(sum(significant_effectsOBP)+sum(!significant_effectsOBP)), mean(effectsOBP)))
+```
+
+Slugging
+
+```{r}
+# Isolate the "treatment" as a matrix
+treatSLG <- as.matrix(HOF_hit.train$SLG)
+
+# Use model.matrix to get our predictor matrix
+# We might also consider adding interaction terms
+XSLG <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + RBI + SB + BB + BA + 
+                       OBP, data = HOF_hit.train))
+
+# Estimate causal forest
+cfSLG <- causal_forest(XSLG,HOFhitoutcome,treatSLG, num.trees = 5000)
+
+# Get predicted causal effects for each observation
+effectsSLG <- predict(cfSLG)$predictions
+
+# And use holdout X's for prediction
+X.holdSLG <- model.matrix(lm(HOF ~ -1 + R + H + X2B + X3B + 
+                       HR + RBI + SB + BB + BA + 
+                       OBP, data = HOF_hit.hold))
+# And get effects
+effects.holdSLG <- predict(cfSLG, X.holdSLG)$predictions
+
+# Get standard errors for the holding data predictions - we probably should have set the num.trees
+# option in causal_forest higher before doing this, perhaps to 5000.
+SEsSLG <- sqrt(predict(cfSLG, X.holdSLG, estimate.variance = TRUE)$variance.estimates)
+```
+
+```{r}
+estimated_effectsSLG <- effectsSLG
+
+# Extract standard errors
+standard_errorsSLG <- SEsSLG
+
+# Calculate z-scores
+z_scoresSLG <- estimated_effectsSLG / standard_errorsSLG
+
+significant_effectsSLG <- abs(z_scoresSLG) > qnorm(1 - significance_level / 2)
+
+HittingData<-rbind(HittingData, c("SLG", sum(significant_effectsSLG), sum(!significant_effectsSLG), sum(significant_effectsSLG)/(sum(significant_effectsSLG)+sum(!significant_effectsSLG)), mean(effectsSLG)))
+```
+
+```{r}
+boxplot_data <- list(effects.holdRuns, effects.holdHits, effects.holdX2B, effects.holdX3B, effects.holdHR, effects.holdRBI, effects.holdSB, effects.holdBB, effects.holdBA, effects.holdOBP, effects.holdSLG)
+
+# Create a boxplot with labels for each box
+boxplot(boxplot_data, names = c("Runs", "Hits", "X2B", "X3B", "HR", "RBI", "SB", "BB", "BA", "OBP", "SLG"))
+
+
+```
+
+```{r}
+new_names <- c("Predictor", "Players_Affected", "Players_Not_Affected", "Percent_Affected", "Mean_Effect")
+names(HittingData) <- new_names
+
+HittingData
+
+HittingData$Players_Affected <- as.integer(HittingData$Players_Affected)
+HittingData$Players_Not_Affected <- as.integer(HittingData$Players_Not_Affected)
+HittingData$Percent_Affected <- as.numeric(HittingData$Percent_Affected)
+HittingData$Mean_Effect <- as.numeric(HittingData$Mean_Effect)
+
+ggplot(HittingData, aes(x = Predictor, y = Players_Affected)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Hall of Fame Voting Affected by Specific Player Statistics", x = "Statistic", y = "Number of Players Affected")
+
+ggplot(HittingData, aes(x = Predictor, y = Mean_Effect)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Hall of Fame Voting Affected by Specific Player Statistics", x = "Statistic", y = "Mean Affect") 
 ```
