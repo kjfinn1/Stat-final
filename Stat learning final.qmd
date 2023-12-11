@@ -186,12 +186,12 @@ HOFhitoutcome <- as.matrix(HOF_hit.train$HOF)
 
 # Use model.matrix to get our predictor matrix
 # We might also consider adding interaction terms
-Xhit <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR + 
+Xruns <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR + 
                        RBI + SB + BB + BA + OBP + 
                        SLG, data = HOF_hit.train))
 
 # Estimate causal forest
-cfRuns <- causal_forest(Xhit,HOFhitoutcome,treatRuns, num.trees = 5000)
+cfRuns <- causal_forest(Xruns,HOFhitoutcome,treatRuns, num.trees = 5000)
 
 # Get predicted causal effects for each observation
 effectsRuns <- predict(cfRuns)$predictions
@@ -223,7 +223,7 @@ significance_level <- 0.05
 # Check significance
 significant_effectsRuns <- abs(z_scoresRuns) > qnorm(1 - significance_level / 2)
 
-HittingData<-rbind("R", sum(significant_effectsRuns), sum(!significant_effectsRuns), sum(significant_effectsRuns)/(sum(significant_effectsRuns)+sum(!significant_effectsRuns)), mean(effectsRuns))
+HittingData<-rbind(HittingData, c("R", sum(significant_effectsRuns), sum(!significant_effectsRuns), sum(significant_effectsRuns)/(sum(significant_effectsRuns)+sum(!significant_effectsRuns)), mean(effectsRuns)))
 ```
 Hits
 ```{r}
@@ -232,42 +232,38 @@ treatHits <- as.matrix(HOF_hit.train$H)
 
 # Use model.matrix to get our predictor matrix
 # We might also consider adding interaction terms
-Xhit <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR + 
+Xhit <- model.matrix(lm(HOF ~ -1 + R + X2B + X3B + HR + 
                        RBI + SB + BB + BA + OBP + 
                        SLG, data = HOF_hit.train))
 
 # Estimate causal forest
-cfRuns <- causal_forest(Xhit,HOFhitoutcome,treatRuns, num.trees = 5000)
+cfHits <- causal_forest(Xhit,HOFhitoutcome,treatHits, num.trees = 5000)
 
 # Get predicted causal effects for each observation
-effectsRuns <- predict(cfRuns)$predictions
+effectsHits <- predict(cfHits)$predictions
 
 # And use holdout X's for prediction
-X.holdRuns <- model.matrix(lm(HOF ~ -1 + H + X2B + X3B + HR + 
+X.holdHits <- model.matrix(lm(HOF ~ -1 + R + X2B + X3B + HR + 
                        RBI + SB + BB + BA + OBP + 
                        SLG, data = HOF_hit.hold))
 # And get effects
-effects.hold <- predict(cfRuns, X.holdRuns)$predictions
+effects.holdHits <- predict(cfHits, X.holdHits)$predictions
 
 # Get standard errors for the holding data predictions - we probably should have set the num.trees
 # option in causal_forest higher before doing this, perhaps to 5000.
-SEsRuns <- sqrt(predict(cfRuns, X.holdRuns, estimate.variance = TRUE)$variance.estimates)
+SEsHits <- sqrt(predict(cfHits, X.holdHits, estimate.variance = TRUE)$variance.estimates)
 ```
 
 ```{r}
-estimated_effectsRuns <- effectsRuns
+estimated_effectsHits <- effectsHits
 
 # Extract standard errors
-standard_errorsRuns <- SEsRuns
+standard_errorsHits <- SEsHits
 
 # Calculate z-scores
-z_scoresRuns <- estimated_effectsRuns / standard_errorsRuns
+z_scoresHits <- estimated_effectsHits / standard_errorsHits
 
-# Set a significance level (e.g., 0.05)
-significance_level <- 0.05
+significant_effectsHits <- abs(z_scoresHits) > qnorm(1 - significance_level / 2)
 
-# Check significance
-significant_effectsRuns <- abs(z_scoresRuns) > qnorm(1 - significance_level / 2)
-
-HittingData<-rbind("R", sum(significant_effectsRuns), sum(!significant_effectsRuns), sum(significant_effectsRuns)/(sum(significant_effectsRuns)+sum(!significant_effectsRuns)), mean(effectsRuns))
+HittingData<-rbind(HittingData, c("H", sum(significant_effectsHits), sum(!significant_effectsHits), sum(significant_effectsHits)/(sum(significant_effectsHits)+sum(!significant_effectsHits)), mean(effectsHits)))
 ```
